@@ -1,52 +1,177 @@
 import "server-only";
-import { App } from "octokit";
-import type { Octokit } from "octokit";
+import * as azdev from "azure-devops-node-api";
+import type { IGitApi } from "azure-devops-node-api/GitApi";
 
 import { env } from "@/lib/env";
 
-let app: App | null = null;
+interface PullData {
+  base: { ref: string };
+  head: { ref: string };
+}
 
-export const getGitHubApp = (): App => {
-  if (!app) {
-    if (
-      !env.GITHUB_APP_ID ||
-      !env.GITHUB_APP_PRIVATE_KEY ||
-      !env.GITHUB_APP_WEBHOOK_SECRET
-    ) {
-      throw new Error("Missing required GitHub App environment variables");
+interface RepoData {
+  archived: boolean;
+}
+
+interface InstallationData {
+  permissions: {
+    contents: "read" | "write";
+  };
+}
+
+export interface InstallationClient {
+  auth: (_: { type: "installation" }) => Promise<{ token: string }>;
+  rest: {
+    apps: {
+      getInstallation: (_: { installation_id: number }) => Promise<{
+        data: InstallationData;
+      }>;
+    };
+    pulls: {
+      get: (params: {
+        owner: string;
+        pull_number: number;
+        repo: string;
+      }) => Promise<{ data: PullData }>;
+    };
+    repos: {
+      get: (_: { owner: string; repo: string }) => Promise<{ data: RepoData }>;
+      getBranchProtection: (_: {
+        branch: string;
+        owner: string;
+        repo: string;
+      }) => Promise<{
+        data: { restrictions?: { apps?: { slug?: string }[] } };
+      }>;
+    };
+  };
+}
+
+let connection: azdev.WebApi | null = null;
+let gitApiPromise: Promise<IGitApi> | null = null;
+
+const normalizeRefName = (refName: string | undefined): string =>
+  refName?.replace("refs/heads/", "") ?? "";
+
+const parseRepoFullName = (
+  repoFullName: string
+): { project: string; repo: string } => {
+  const [projectOrOwner, repo] = repoFullName.split("/");
+  if (!repo) {
+    throw new Error(`Invalid repository format: "${repoFullName}"`);
+  }
+
+  const project = env.AZURE_DEVOPS_PROJECT || projectOrOwner;
+  if (!project) {
+    throw new Error("Missing AZURE_DEVOPS_PROJECT environment variable");
+  }
+
+  return {
+    project,
+    repo,
+  };
+};
+
+export const getAzureRepoUrl = (repoFullName: string): string => {
+  const { project, repo } = parseRepoFullName(repoFullName);
+  const orgUrl = env.AZURE_DEVOPS_ORG_URL?.replace(/\/$/, "");
+  if (!orgUrl) {
+    throw new Error("Missing AZURE_DEVOPS_ORG_URL environment variable");
+  }
+  return `${orgUrl}/${project}/_git/${repo}`;
+};
+
+export const getGitHubApp = (): azdev.WebApi => {
+  if (!connection) {
+    if (!env.AZURE_DEVOPS_ORG_URL || !env.AZURE_DEVOPS_PAT) {
+      throw new Error("Missing required Azure DevOps environment variables");
     }
 
-    app = new App({
-      appId: env.GITHUB_APP_ID,
-      privateKey: env.GITHUB_APP_PRIVATE_KEY.replaceAll("\\n", "\n"),
-      webhooks: {
-        secret: env.GITHUB_APP_WEBHOOK_SECRET,
+    connection = new azdev.WebApi(
+      env.AZURE_DEVOPS_ORG_URL,
+      azdev.getPersonalAccessTokenHandler(env.AZURE_DEVOPS_PAT)
+    );
+  }
+
+  return connection;
+};
+
+const getGitApi = (): Promise<IGitApi> => {
+  if (!gitApiPromise) {
+    const azureApp = getGitHubApp();
+    gitApiPromise = azureApp.getGitApi();
+  }
+
+  return gitApiPromise;
+};
+
+const getAzurePat = (): string => {
+  if (!env.AZURE_DEVOPS_PAT) {
+    throw new Error("Missing AZURE_DEVOPS_PAT environment variable");
+  }
+
+  return env.AZURE_DEVOPS_PAT;
+};
+
+export const getInstallationOctokit = async (): Promise<InstallationClient> => {
+  const gitApi = await getGitApi();
+
+  return {
+    auth: () => Promise.resolve({ token: getAzurePat() }),
+    rest: {
+      apps: {
+        getInstallation: () =>
+          Promise.resolve({
+            data: {
+              permissions: {
+                contents: "write",
+              },
+            },
+          }),
       },
-    });
-  }
-  return app;
+      pulls: {
+        get: async ({ owner, pull_number, repo }) => {
+          const project = env.AZURE_DEVOPS_PROJECT || owner;
+          const repository = await gitApi.getRepository(repo, project);
+          if (!repository?.id) {
+            throw new Error(`Repository ${project}/${repo} not found`);
+          }
+
+          const pullRequest = await gitApi.getPullRequest(
+            repository.id,
+            pull_number,
+            project
+          );
+
+          return {
+            data: {
+              base: { ref: normalizeRefName(pullRequest.targetRefName) },
+              head: { ref: normalizeRefName(pullRequest.sourceRefName) },
+            },
+          };
+        },
+      },
+      repos: {
+        get: async ({ owner, repo }) => {
+          const project = env.AZURE_DEVOPS_PROJECT || owner;
+          const repository = await gitApi.getRepository(repo, project);
+          return {
+            data: {
+              archived: Boolean(repository?.isDisabled),
+            },
+          };
+        },
+        getBranchProtection: () => {
+          const error = new Error("Branch protection is not supported");
+          Object.assign(error, { status: 404 });
+          return Promise.reject(error);
+        },
+      },
+    },
+  };
 };
 
-export const getInstallationOctokit = (): Promise<Octokit> => {
-  if (!env.GITHUB_APP_INSTALLATION_ID) {
-    throw new Error("Missing GITHUB_APP_INSTALLATION_ID environment variable");
-  }
-
-  const githubApp = getGitHubApp();
-  return githubApp.getInstallationOctokit(env.GITHUB_APP_INSTALLATION_ID);
-};
-
-export const getAppInfo = async (): Promise<{
+export const getAppInfo = (): {
   botUserId: number;
   slug: string;
-}> => {
-  const octokit = await getInstallationOctokit();
-  const { data: appData } = (await octokit.request("GET /app")) as {
-    data: { slug: string };
-  };
-  const { data: botUser } = await octokit.request("GET /users/{username}", {
-    username: `${appData.slug}[bot]`,
-  });
-
-  return { botUserId: botUser.id, slug: appData.slug };
-};
+} => ({ botUserId: 0, slug: env.AZURE_DEVOPS_BOT_NAME || "openreview" });

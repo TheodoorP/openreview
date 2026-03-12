@@ -1,6 +1,5 @@
-import type { Octokit } from "octokit";
-
 import { parseError } from "@/lib/error";
+import type { InstallationClient } from "@/lib/github";
 import { getInstallationOctokit } from "@/lib/github";
 
 export interface PushAccessResult {
@@ -9,7 +8,7 @@ export interface PushAccessResult {
 }
 
 const checkRepoArchived = async (
-  octokit: Octokit,
+  octokit: InstallationClient,
   owner: string,
   repo: string
 ): Promise<PushAccessResult | null> => {
@@ -26,11 +25,10 @@ const checkRepoArchived = async (
 };
 
 const checkInstallationPermissions = async (
-  octokit: Octokit
+  octokit: InstallationClient
 ): Promise<PushAccessResult | null> => {
-  const installationId = Number(process.env.GITHUB_APP_INSTALLATION_ID);
   const { data } = await octokit.rest.apps.getInstallation({
-    installation_id: installationId,
+    installation_id: 0,
   });
 
   const { permissions } = data;
@@ -38,7 +36,8 @@ const checkInstallationPermissions = async (
   if (!permissions?.contents || permissions.contents === "read") {
     return {
       canPush: false,
-      reason: "Installation does not have write access to repository contents",
+      reason:
+        "Configured Azure DevOps credentials do not have write access to repository contents",
     };
   }
 
@@ -66,7 +65,7 @@ const checkBranchRestrictions = (
   if (!isAppAllowed && allowedApps.length > 0) {
     return {
       canPush: false,
-      reason: `Branch "${branch}" has push restrictions that don't include the OpenReview app`,
+      reason: `Branch "${branch}" has push restrictions that don't include OpenReview`,
     };
   }
 
@@ -74,7 +73,7 @@ const checkBranchRestrictions = (
 };
 
 const checkBranchProtection = async (
-  octokit: Octokit,
+  octokit: InstallationClient,
   owner: string,
   repo: string,
   branch: string
@@ -97,7 +96,7 @@ const checkBranchProtection = async (
 };
 
 const runAccessChecks = async (
-  octokit: Octokit,
+  octokit: InstallationClient,
   owner: string,
   repo: string,
   branch: string
@@ -130,7 +129,7 @@ export const checkPushAccess = async (
 
   const octokit = await getInstallationOctokit().catch((error: unknown) => {
     throw new Error(
-      `[checkPushAccess] Failed to get GitHub client: ${parseError(error)}`
+      `[checkPushAccess] Failed to get Azure DevOps client: ${parseError(error)}`
     );
   });
 

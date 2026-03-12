@@ -1,6 +1,7 @@
 import { Sandbox } from "@vercel/sandbox";
 
 import { parseError } from "@/lib/error";
+import { getAzureRepoUrl } from "@/lib/github";
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
 
@@ -18,8 +19,8 @@ export const createSandbox = async (
         password: token,
         revision: branch,
         type: "git",
-        url: `https://github.com/${repoFullName}.git`,
-        username: "x-access-token",
+        url: getAzureRepoUrl(repoFullName),
+        username: "openreview",
       },
       timeout: FIVE_MINUTES_MS,
     });

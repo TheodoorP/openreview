@@ -1,6 +1,6 @@
 # OpenReview
 
-An open-source, self-hosted AI code review bot. Deploy to Vercel, connect a GitHub App, and get on-demand PR reviews powered by Claude.
+An open-source, self-hosted AI code review bot. Deploy to Vercel, connect Azure DevOps, and get on-demand PR reviews powered by Claude.
 
 > **Beta**: OpenReview is currently in beta. It was built as an internal project to help the Vercel team test their technologies together. Expect rough edges and breaking changes.
 
@@ -70,42 +70,26 @@ sequenceDiagram
 
 Click the button above or clone this repo and deploy it to your Vercel account.
 
-### 2. Create a GitHub App
+### 2. Configure Azure DevOps access
 
-Create a new [GitHub App](https://github.com/settings/apps/new) with the following configuration:
-
-**Webhook URL**: `https://your-deployment.vercel.app/api/webhooks`
-
-**Repository permissions**:
-
-- Contents: Read & write
-- Issues: Read & write
-- Pull requests: Read & write
-- Metadata: Read-only
-
-**Subscribe to events**:
-
-- Issue comment
-- Pull request review comment
-
-Generate a private key and webhook secret, then note your App ID and Installation ID.
+Create an Azure DevOps Personal Access Token with access to Code (Read & Write), then note your organization URL and project name.
 
 ### 3. Configure environment variables
 
 Add the following environment variables to your Vercel project:
 
-| Variable                     | Description                                                            |
-| ---------------------------- | ---------------------------------------------------------------------- |
-| `ANTHROPIC_API_KEY`          | API key for Claude                                                     |
-| `GITHUB_APP_ID`              | The ID of your GitHub App                                              |
-| `GITHUB_APP_INSTALLATION_ID` | The installation ID for your repository                                |
-| `GITHUB_APP_PRIVATE_KEY`     | The private key generated for your GitHub App (with `\n` for newlines) |
-| `GITHUB_APP_WEBHOOK_SECRET`  | The webhook secret you configured                                      |
-| `REDIS_URL`                  | (Optional) Redis URL for persistent state, falls back to in-memory     |
+| Variable                | Description                                                             |
+| ----------------------- | ----------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`     | API key for Claude                                                      |
+| `AZURE_DEVOPS_ORG_URL`  | Azure DevOps organization URL (for example `https://dev.azure.com/org`) |
+| `AZURE_DEVOPS_PROJECT`  | Azure DevOps project name                                               |
+| `AZURE_DEVOPS_PAT`      | Azure DevOps Personal Access Token (Code read/write)                    |
+| `AZURE_DEVOPS_BOT_NAME` | (Optional) Display name used by the bot                                 |
+| `REDIS_URL`             | (Optional) Redis URL for persistent state, falls back to in-memory      |
 
-### 4. Install the GitHub App
+### 4. Enable repository access
 
-Install the GitHub App on the repositories you want OpenReview to monitor. Once installed, mention `@openreview` in any PR comment to trigger a review.
+Grant the configured Azure DevOps PAT access to the repositories you want OpenReview to monitor.
 
 ## Usage
 
@@ -164,8 +148,8 @@ The agent sees only skill names and descriptions in its system prompt. When a re
 - [Vercel Workflow](https://vercel.com/docs/workflow) — Durable execution
 - [Vercel Sandbox](https://vercel.com/docs/sandbox) — Isolated code execution
 - [AI SDK](https://sdk.vercel.ai) — AI model integration
-- [Chat SDK](https://www.npmjs.com/package/chat) — GitHub webhook handling
-- [Octokit](https://github.com/octokit/octokit.js) — GitHub API client
+- [Chat SDK](https://www.npmjs.com/package/chat) — PR webhook handling
+- [azure-devops-node-api](https://www.npmjs.com/package/azure-devops-node-api) — Azure DevOps API client
 
 ## Development
 
