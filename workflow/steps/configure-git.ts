@@ -26,7 +26,7 @@ const configureRemoteAndIdentity = async (
   await sandbox.runCommand("git", [
     "config",
     "user.email",
-    "openreview[bot]@noreply.local",
+    "noreply@dev.azure.com",
   ]);
 };
 

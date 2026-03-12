@@ -27,9 +27,7 @@ const checkRepoArchived = async (
 const checkInstallationPermissions = async (
   octokit: InstallationClient
 ): Promise<PushAccessResult | null> => {
-  const { data } = await octokit.rest.apps.getInstallation({
-    installation_id: 0,
-  });
+  const { data } = await octokit.rest.apps.getInstallation();
 
   const { permissions } = data;
 

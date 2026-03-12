@@ -23,7 +23,7 @@ export interface InstallationClient {
   auth: (_: { type: "installation" }) => Promise<{ token: string }>;
   rest: {
     apps: {
-      getInstallation: (_: { installation_id: number }) => Promise<{
+      getInstallation: () => Promise<{
         data: InstallationData;
       }>;
     };
@@ -113,11 +113,16 @@ const getAzurePat = (): string => {
   return env.AZURE_DEVOPS_PAT;
 };
 
+const createStatusError = (
+  status: number,
+  message: string
+): Error & { status: number } => Object.assign(new Error(message), { status });
+
 export const getInstallationOctokit = async (): Promise<InstallationClient> => {
   const gitApi = await getGitApi();
 
   return {
-    auth: () => Promise.resolve({ token: getAzurePat() }),
+    auth: () => Promise.resolve().then(() => ({ token: getAzurePat() })),
     rest: {
       apps: {
         getInstallation: () =>
@@ -162,9 +167,12 @@ export const getInstallationOctokit = async (): Promise<InstallationClient> => {
           };
         },
         getBranchProtection: () => {
-          const error = new Error("Branch protection is not supported");
-          Object.assign(error, { status: 404 });
-          return Promise.reject(error);
+          return Promise.reject(
+            createStatusError(
+              404,
+              "Branch protection checking is not supported for Azure DevOps repositories"
+            )
+          );
         },
       },
     },
@@ -174,4 +182,4 @@ export const getInstallationOctokit = async (): Promise<InstallationClient> => {
 export const getAppInfo = (): {
   botUserId: number;
   slug: string;
-} => ({ botUserId: 0, slug: env.AZURE_DEVOPS_BOT_NAME || "openreview" });
+} => ({ botUserId: -1, slug: env.AZURE_DEVOPS_BOT_NAME || "openreview" });
