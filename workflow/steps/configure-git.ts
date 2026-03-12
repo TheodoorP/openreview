@@ -1,11 +1,11 @@
 import { Sandbox } from "@vercel/sandbox";
 
 import { parseError } from "@/lib/error";
+import { getAzureRepoUrl } from "@/lib/github";
 
 const configureRemoteAndIdentity = async (
   sandbox: Sandbox,
-  authenticatedUrl: string,
-  token: string
+  authenticatedUrl: string
 ): Promise<void> => {
   await sandbox.runCommand("git", [
     "remote",
@@ -26,12 +26,7 @@ const configureRemoteAndIdentity = async (
   await sandbox.runCommand("git", [
     "config",
     "user.email",
-    "openreview[bot]@users.noreply.github.com",
-  ]);
-
-  await sandbox.runCommand("bash", [
-    "-c",
-    `export PATH="$HOME/.local/bin:$PATH" && echo "${token}" | gh auth login --with-token`,
+    "noreply@dev.azure.com",
   ]);
 };
 
@@ -49,10 +44,13 @@ export const configureGit = async (
     );
   });
 
-  const authenticatedUrl = `https://x-access-token:${token}@github.com/${repoFullName}.git`;
+  const authenticatedUrl = getAzureRepoUrl(repoFullName).replace(
+    "https://",
+    `https://openreview:${token}@`
+  );
 
   try {
-    await configureRemoteAndIdentity(sandbox, authenticatedUrl, token);
+    await configureRemoteAndIdentity(sandbox, authenticatedUrl);
   } catch (error) {
     throw new Error(`Failed to configure git: ${parseError(error)}`, {
       cause: error,

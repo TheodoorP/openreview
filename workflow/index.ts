@@ -49,7 +49,7 @@ export const botWorkflow = async (params: WorkflowParams): Promise<void> => {
 
 Unable to access this branch: ${pushAccess.reason}
 
-Please ensure the OpenReview app has access to this repository and branch.
+Please ensure the configured Azure DevOps credentials can access this repository and branch.
 
 ---
 *Powered by [OpenReview](https://github.com/vercel-labs/openreview)*`

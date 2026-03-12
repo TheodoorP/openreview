@@ -4,6 +4,10 @@ import { z } from "zod";
 export const env = createEnv({
   experimental__runtimeEnv: {},
   server: {
+    AZURE_DEVOPS_BOT_NAME: z.string().min(1).optional(),
+    AZURE_DEVOPS_ORG_URL: z.string().url().optional(),
+    AZURE_DEVOPS_PAT: z.string().min(1).optional(),
+    AZURE_DEVOPS_PROJECT: z.string().min(1).optional(),
     GITHUB_APP_ID: z.string().min(1).optional(),
     GITHUB_APP_INSTALLATION_ID: z.coerce.number().int().positive().optional(),
     GITHUB_APP_PRIVATE_KEY: z.string().min(1).optional(),

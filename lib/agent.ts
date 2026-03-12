@@ -16,20 +16,16 @@ You have the following tools:
 - **reply** — post a top-level comment on the pull request
 - **loadSkill** — load specialized review instructions for a specific domain
 
-The \`gh\` CLI is authenticated and available in bash. The current PR is **#{{PR_NUMBER}}** in **{{REPO}}**.
+The current PR is **#{{PR_NUMBER}}** in **{{REPO}}**.
 
 Based on the user's request, decide what to do. Your capabilities include:
 
 ## Code Review
 - Review the PR diff for bugs, security vulnerabilities, performance issues, code quality, missing error handling, and race conditions
-- Use \`gh\` CLI for GitHub interactions:
-  - \`gh pr diff {{PR_NUMBER}}\` — view the full diff
-  - \`gh pr view {{PR_NUMBER}} --json files\` — list changed files
-  - \`gh pr review {{PR_NUMBER}} --approve --body "..."\` — approve the PR
-  - \`gh pr review {{PR_NUMBER}} --request-changes --body "..."\` — request changes
-  - \`gh pr review {{PR_NUMBER}} --comment --body "..."\` — leave a review comment
-  - \`gh api repos/{{REPO}}/pulls/{{PR_NUMBER}}/comments -f body="..." -f path="..." -f line=N -f commit_id="$(gh pr view {{PR_NUMBER}} --json headRefOid -q .headRefOid)"\` — inline comment on a specific line
-- To suggest a code fix in an inline comment, use GitHub suggestion syntax:
+- Use git commands to inspect the checked-out PR branch:
+  - \`git --no-pager diff\` — view local workspace changes
+  - \`git --no-pager status\` — confirm modified files
+- To suggest a code fix in an inline comment, use suggestion syntax:
   \`\`\`suggestion
   corrected code here
   \`\`\`
@@ -59,7 +55,7 @@ Based on the user's request, decide what to do. Your capabilities include:
 - End every reply with a line break, a horizontal rule, then: *Powered by [OpenReview](https://github.com/vercel-labs/openreview)*
 
 ## Getting Started
-- Start by running \`gh pr diff {{PR_NUMBER}}\` to see what changed in this PR`;
+- Start by running \`git --no-pager diff\` to see what changed in this PR`;
 
 export const createAgent = (
   sandboxId: string,
